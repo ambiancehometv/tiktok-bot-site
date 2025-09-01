@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Typewriter Overlay · ambiancehometv</title>
+<style>
+  :root{
+    /* KOLAY AYARLAR */
+    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+    --font-size: clamp(14px, 1.2vw + 8px, 22px); /* responsive */
+    --text-color: rgba(255,255,255,0.92);
+    --accent-color: rgba(255,255,255,0.92);
+    --shadow: 0 2px 20px rgba(0,0,0,0.65);
+    --bg-blur: 8px;              /* 0 yaparsan blur kapalı olur */
+    --bg-darken: rgba(0,0,0,0.20); /* yazı arkasına hafif koyuluk */
+    --line-height: 1.35;
+    --padding: 10px 14px;
+    --corner: 14px;
+    --typing-speed: 38;   /* ms/karakter (küçük = daha hızlı) */
+    --delete-speed: 26;   /* ms/karakter */
+    --hold-typed: 3800;   /* yazı tamamlanınca bekleme (ms) */
+    --hold-empty: 800;    /* silince bekleme (ms) */
+    --loop-gap: 1200;     /* sonraki cümleye geçmeden önce (ms) */
+  }
+
+  html, body {
+    height: 100%;
+    background: transparent; /* ÖNEMLİ: Upstream overlay için */
+    margin: 0;
+    overflow: hidden;
+  }
+
+  /* Konteyner: sağ-alt köşe */
+  .dock-br {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    max-width: min(52ch, 92vw);
+    pointer-events: none;     /* alttaki tıklamayı bloklamasın */
+    filter: drop-shadow(var(--shadow));
+  }
+
+  /* Kart: hafif blur ve koyuluk, çok minimal */
+  .bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: var(--padding);
+    border-radius: var(--corner);
+    line-height: var(--line-height);
+    font: 500 var(--font-size)/var(--line-height) var(--font-family);
+    color: var(--text-color);
+    backdrop-filter: blur(var(--bg-blur));
+    -webkit-backdrop-filter: blur(var(--bg-blur));
+    background: color-mix(in oklab, transparent 60%, var(--bg-darken));
+    /* Eski tarayıcılar için yedek: */
+    background: var(--bg-darken);
+  }
+
+  /* Yazı imleci */
+  .cursor {
+    display: inline-block;
+    width: .08em;
+    background: var(--accent-color);
+    margin-left: .12em;
+    animation: blink 1s steps(1, end) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* İsteğe bağlı küçük başlık (solunda minik nokta) */
+  .label {
+    opacity: .9;
+    font-weight: 600;
+    letter-spacing: .02em;
+    margin-right: .4rem;
+    white-space: nowrap;
+  }
+  .dot {
+    display: inline-block;
+    width: .5em; height: .5em;
+    border-radius: 999px;
+    background: var(--accent-color);
+    margin-right: .45rem;
+    opacity: .85;
+  }
+</style>
+</head>
+<body>
+  <!-- SAĞ ALT KÖŞEDE BUBBLE -->
+  <div class="dock-br">
+    <div class="bubble" aria-live="polite" aria-atomic="true">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="label">Ambiance</span>
+      <span id="tw"></span><span class="cursor" aria-hidden="true"></span>
+    </div>
+  </div>
+
+<script>
+/* ======= DÜZENLE (metinler) ======= */
+const phrases = [
+  "Relax, unwind, stay cozy.",
+  "Soft jazz for your evening.",
+  "Night by the fire.",
+  "Breathe in. Slow down.",
+  "Warm lights, calm minds.",
+  "Your peaceful corner is here.",
+];
+
+/* ======= Tipyazı motoru ======= */
+const el = document.getElementById("tw");
+
+let i = 0, j = 0, deleting = false;
+
+function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function loop(){
+  const phrase = phrases[i % phrases.length];
+
+  if (!deleting) {
+    el.textContent = phrase.slice(0, j++);
+    if (j <= phrase.length) {
+      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--typing-speed')));
+    } else {
+      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hold-typed')));
+      deleting = true;
+    }
+  } else {
+    el.textContent = phrase.slice(0, j--);
+    if (j >= 0) {
+      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--delete-speed')));
+    } else {
+      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hold-empty')));
+      deleting = false;
+      i++; // sonraki cümle
+      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--loop-gap')));
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
