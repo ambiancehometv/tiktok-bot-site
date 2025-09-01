@@ -1,145 +1,132 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Typewriter Overlay · ambiancehometv</title>
+<title>Overlay · typewriter</title>
+
+<!-- Poppins -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
   :root{
     /* KOLAY AYARLAR */
-    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
-    --font-size: clamp(14px, 1.2vw + 8px, 22px); /* responsive */
-    --text-color: rgba(255,255,255,0.92);
-    --accent-color: rgba(255,255,255,0.92);
-    --shadow: 0 2px 20px rgba(0,0,0,0.65);
-    --bg-blur: 8px;              /* 0 yaparsan blur kapalı olur */
-    --bg-darken: rgba(0,0,0,0.20); /* yazı arkasına hafif koyuluk */
-    --line-height: 1.35;
-    --padding: 10px 14px;
-    --corner: 14px;
-    --typing-speed: 38;   /* ms/karakter (küçük = daha hızlı) */
-    --delete-speed: 26;   /* ms/karakter */
-    --hold-typed: 3800;   /* yazı tamamlanınca bekleme (ms) */
-    --hold-empty: 800;    /* silince bekleme (ms) */
-    --loop-gap: 1200;     /* sonraki cümleye geçmeden önce (ms) */
+    --font: 500 18px/1.35 "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --color: rgba(255,255,255,.98);
+    --shadow: 0 6px 28px rgba(0,0,0,.55);   /* sadece okunurluk için */
+    --pad-x: 0;                              /* bant yok; 0 bırak */
+    --pad-y: 0;
+    --pre-blink: 900ms;                      /* başlangıçta sadece imleç */
+    --type-speed: 42ms;                      /* ms/harf */
+    --hold-typed: 2200ms;                    /* yazı tamamlandıktan sonra bekleme */
+    --end-blink: 800ms;                      /* bitişte imleç blink süresi */
+    --gap-next: 700ms;                       /* sonraki cümleye geçmeden önce */
   }
 
-  html, body {
-    height: 100%;
-    background: transparent; /* ÖNEMLİ: Upstream overlay için */
-    margin: 0;
-    overflow: hidden;
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+
+  /* Sağ-alt köşe */
+  .dock-br{
+    position: fixed; right: 22px; bottom: 22px;
+    pointer-events: none; filter: drop-shadow(var(--shadow));
   }
 
-  /* Konteyner: sağ-alt köşe */
-  .dock-br {
-    position: fixed;
-    right: 22px;
-    bottom: 22px;
-    max-width: min(52ch, 92vw);
-    pointer-events: none;     /* alttaki tıklamayı bloklamasın */
-    filter: drop-shadow(var(--shadow));
+  /* Tek satır metin (bant yok) */
+  .line{
+    font: var(--font);
+    color: var(--color);
+    padding: var(--pad-y) var(--pad-x);
+    white-space: nowrap; text-align: right;
+    /* çok uzun olursa nazikçe sağ kenarda erisin */
+    position: relative; overflow: hidden; max-width: min(64vw, 780px);
+  }
+  .line::after{
+    content:""; position:absolute; right:0; top:0; bottom:0; width:26px;
+    background: linear-gradient(to right, transparent, rgba(0,0,0,.18));
+    pointer-events:none;
   }
 
-  /* Kart: hafif blur ve koyuluk, çok minimal */
-  .bubble {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    padding: var(--padding);
-    border-radius: var(--corner);
-    line-height: var(--line-height);
-    font: 500 var(--font-size)/var(--line-height) var(--font-family);
-    color: var(--text-color);
-    backdrop-filter: blur(var(--bg-blur));
-    -webkit-backdrop-filter: blur(var(--bg-blur));
-    background: color-mix(in oklab, transparent 60%, var(--bg-darken));
-    /* Eski tarayıcılar için yedek: */
-    background: var(--bg-darken);
+  /* İmleç “|” */
+  .cursor{
+    display:inline-block; width:.09em; height:1em; margin-left:.12em;
+    background: var(--color);
+    transform: translateY(.12em);
+    animation: blink 1s steps(1,end) infinite;
   }
+  @keyframes blink{ 50%{opacity:0} }
 
-  /* Yazı imleci */
-  .cursor {
-    display: inline-block;
-    width: .08em;
-    background: var(--accent-color);
-    margin-left: .12em;
-    animation: blink 1s steps(1, end) infinite;
-  }
-  @keyframes blink { 50% { opacity: 0; } }
-
-  /* İsteğe bağlı küçük başlık (solunda minik nokta) */
-  .label {
-    opacity: .9;
-    font-weight: 600;
-    letter-spacing: .02em;
-    margin-right: .4rem;
-    white-space: nowrap;
-  }
-  .dot {
-    display: inline-block;
-    width: .5em; height: .5em;
-    border-radius: 999px;
-    background: var(--accent-color);
-    margin-right: .45rem;
-    opacity: .85;
-  }
+  /* yumuşak çıkış */
+  .fade-out{ animation: fadeOut 420ms ease forwards; }
+  @keyframes fadeOut{ to{ opacity:0; transform: translateY(2px) } }
 </style>
 </head>
 <body>
-  <!-- SAĞ ALT KÖŞEDE BUBBLE -->
   <div class="dock-br">
-    <div class="bubble" aria-live="polite" aria-atomic="true">
-      <span class="dot" aria-hidden="true"></span>
-      <span class="label">Ambiance</span>
-      <span id="tw"></span><span class="cursor" aria-hidden="true"></span>
-    </div>
+    <span id="text" class="line"></span><span id="cur" class="cursor" aria-hidden="true"></span>
   </div>
 
 <script>
-/* ======= DÜZENLE (metinler) ======= */
+/* ——— kısa, doğal, kurallara uygun ifadeler ——— */
 const phrases = [
-  "Relax, unwind, stay cozy.",
-  "Soft jazz for your evening.",
-  "Night by the fire.",
-  "Breathe in. Slow down.",
-  "Warm lights, calm minds.",
-  "Your peaceful corner is here.",
+  "Keyfi yerinde mi? Sohbete bir merhaba bırak.",
+  "Müziği sevdiysen bir beğeni bırakman güzel olur.",
+  "Buradasın, iyi ki varsın — sohbet açık.",
+  "Görüntü hoşuna gittiyse bir ❤️ eksik olmasın.",
+  "Arkana yaslan; düşünceni sohbete bırak.",
+  "Rahatla — küçük bir beğeni başkalarına da ulaştırır.",
+  "Hangi şehirden izliyorsun? Kısacık yaz.",
+  "Ses iyi mi? Sohbette bir kelime yeter.",
 ];
 
-/* ======= Tipyazı motoru ======= */
-const el = document.getElementById("tw");
+/* ——— zaman yardımcıları ——— */
+const getMs = v => parseInt(String(v).replace(/[^0-9]/g,''))||0;
+const css = getComputedStyle(document.documentElement);
+const PRE_BLINK = getMs(css.getPropertyValue('--pre-blink'));
+const TYPE = getMs(css.getPropertyValue('--type-speed'));
+const HOLD = getMs(css.getPropertyValue('--hold-typed'));
+const END_BLINK = getMs(css.getPropertyValue('--end-blink'));
+const GAP = getMs(css.getPropertyValue('--gap-next'));
 
-let i = 0, j = 0, deleting = false;
+const el = document.getElementById('text');
+const cur = document.getElementById('cur');
 
-function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+const wait = ms => new Promise(r=>setTimeout(r,ms));
 
-async function loop(){
-  const phrase = phrases[i % phrases.length];
+async function cycle(){
+  let i = 0;
+  while(true){
+    const s = phrases[i % phrases.length];
 
-  if (!deleting) {
-    el.textContent = phrase.slice(0, j++);
-    if (j <= phrase.length) {
-      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--typing-speed')));
-    } else {
-      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hold-typed')));
-      deleting = true;
+    // 1) sadece imleç blink
+    el.textContent = "";
+    cur.style.display = "inline-block";
+    await wait(PRE_BLINK);
+
+    // 2) yazıyı harf harf yaz
+    for(let j=1; j<=s.length; j++){
+      el.textContent = s.slice(0,j);
+      await wait(TYPE);
     }
-  } else {
-    el.textContent = phrase.slice(0, j--);
-    if (j >= 0) {
-      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--delete-speed')));
-    } else {
-      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--hold-empty')));
-      deleting = false;
-      i++; // sonraki cümle
-      await wait(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--loop-gap')));
-    }
+
+    // 3) yazı tamamlandıktan sonra bekle
+    await wait(HOLD);
+
+    // 4) bitişte imleç blink + yumuşak çıkış
+    cur.style.display = "inline-block";
+    await wait(END_BLINK);
+    el.classList.add('fade-out');
+    await wait(420);
+    el.classList.remove('fade-out');
+    el.textContent = "";
+    cur.style.display = "inline-block";
+
+    // 5) sonraki cümleye geç
+    await wait(GAP);
+    i++;
   }
-  requestAnimationFrame(loop);
 }
 
-loop();
+cycle();
 </script>
 </body>
 </html>
