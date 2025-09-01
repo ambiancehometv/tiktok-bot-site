@@ -16,11 +16,11 @@
     --shadow: 0 6px 28px rgba(0,0,0,.55);   /* sadece okunurluk için */
     --pad-x: 0;                              /* bant yok; 0 bırak */
     --pad-y: 0;
-    --pre-blink: 900ms;                      /* başlangıçta sadece imleç */
-    --type-speed: 42ms;                      /* ms/harf */
-    --hold-typed: 2200ms;                    /* yazı tamamlandıktan sonra bekleme */
-    --end-blink: 800ms;                      /* bitişte imleç blink süresi */
-    --gap-next: 700ms;                       /* sonraki cümleye geçmeden önce */
+    --pre-blink: 1200ms;    /* yazı başlamadan önce sadece imleç */
+    --type-speed: 42ms;     /* ms/harf */
+    --hold-typed: 4000ms;   /* yazı tamamlandıktan sonra ekranda kalma süresi (artırıldı) */
+    --end-blink: 1000ms;    /* silmeden önce imleç blink süresi */
+    --gap-next: 2000ms;     /* yazı silindikten sonra boş bekleme süresi (artırıldı) */
   }
 
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
