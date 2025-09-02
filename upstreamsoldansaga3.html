@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Overlay · typewriter (right-anchored)</title>
+
+<!-- Sadece Black (900) istiyorsan: wght@900 -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* İstersen 900 yap: --font: 900 18px/1.35 "Poppins", ... */
+    --font: 500 18px/1.35 "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --color: rgba(255,255,255,.98);
+    --shadow: 0 6px 28px rgba(0,0,0,.55);
+
+    /* Zamanlar */
+    --pre-blink: 1200ms;
+    --type-speed: 50ms;
+    --hold-typed: 9000ms;   /* görünürlük uzun */
+    --end-blink: 900ms;
+    --gap-next: 3000ms;
+    --cooldown: 300000ms;   /* 5 dk */
+  }
+
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+
+  /* Sol-alt köşe */
+  .dock-bl{
+    position: fixed; left: 22px; bottom: 22px;
+    pointer-events: none; filter: drop-shadow(var(--shadow));
+  }
+
+  /* Sağ kenara sabitleme için sabit genişlikli bir "ray" */
+  .track{
+    position: relative;
+    width: min(64vw, 780px);   /* ölçülecek sabit kutu */
+    overflow: hidden;
+    white-space: nowrap;
+    text-align: left;
+    direction: ltr;
+  }
+
+  .line{
+    font: var(--font);
+    color: var(--color);
+    white-space: nowrap;
+    position: relative;
+    display: inline-block;
+    /* Dinamik margin-left JS ile verilecek */
+  }
+
+  .cursor{
+    display:inline-block; width:.09em; height:1em; margin-left:.12em;
+    background: var(--color);
+    transform: translateY(.12em);
+    animation: blink 1s steps(1,end) infinite;
+  }
+  @keyframes blink{ 50%{opacity:0} }
+
+  .fade-out{ animation: fadeOut 420ms ease forwards; }
+  @keyframes fadeOut{ to{ opacity:0; transform: translateY(2px) } }
+</style>
+</head>
+<body>
+  <div class="dock-bl">
+    <div id="track" class="track">
+      <span id="text" class="line"></span><span id="cur" class="cursor" aria-hidden="true"></span>
+    </div>
+  </div>
+
+<script>
+/* ——— cümleler ——— */
+const phrases = [
+  "Feeling good? Drop a hello in the chat.",
+  "Enjoying the music? A like would be lovely.",
+  "Glad you're here — chat is open.",
+  "If the view feels nice, a ❤️ is welcome.",
+  "Lean back and share a thought in chat.",
+  "Relax — a small like helps spread the calm.",
+  "Where are you watching from? Type it in.",
+  "Does the sound feel right? One word in chat is enough.",
+];
+
+/* ——— zaman yardımcıları ——— */
+const getMs = v => parseInt(String(v).replace(/[^0-9]/g,''))||0;
+const css = getComputedStyle(document.documentElement);
+const PRE_BLINK   = getMs(css.getPropertyValue('--pre-blink'));
+const TYPE        = getMs(css.getPropertyValue('--type-speed'));
+const HOLD        = getMs(css.getPropertyValue('--hold-typed'));
+const END_BLINK   = getMs(css.getPropertyValue('--end-blink'));
+const GAP         = getMs(css.getPropertyValue('--gap-next'));
+const COOLDOWN    = getMs(css.getPropertyValue('--cooldown'));
+
+const track = document.getElementById('track');
+const el    = document.getElementById('text');
+const cur   = document.getElementById('cur');
+
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+/* ——— her adımda sağ kenara sabitle ——— */
+function rightAnchor() {
+  // Kutunun kullanılabilir genişliği
+  const trackW = track.getBoundingClientRect().width;
+  // Yazının gerçek genişliği (taşsa bile)
+  const textW  = el.scrollWidth;
+  // İmleç genişliği
+  const curW   = cur.getBoundingClientRect().width + 2; // 2px nazik boşluk
+  // Sol boşluk: (kutunun sonu) - (metin + imleç)
+  const ml = Math.max(0, trackW - textW - curW);
+  el.style.marginLeft = ml + 'px';
+}
+
+/* ——— tek cümleyi yaz ——— */
+async function typeOnce(s){
+  // Önce tam cümleye göre başlangıç hizasını (boş metinle) ayarlayabilmek için
+  el.textContent = "";
+  cur.style.display = "inline-block";
+
+  // Başlangıç ön-blink
+  rightAnchor();
+  await wait(PRE_BLINK);
+
+  // Soldan sağa yazarken her harfte yeniden hizala
+  for(let j=1; j<=s.length; j++){
+    el.textContent = s.slice(0,j);
+    rightAnchor();
+    await wait(TYPE);
+  }
+
+  // Yazı kaldığı yerde (sağa dayalı) beklesin, imleç yanıp sönsün
+  await wait(HOLD);
+
+  // Kısa blink + fade-out
+  await wait(END_BLINK);
+  el.classList.add('fade-out');
+  await wait(420);
+  el.classList.remove('fade-out');
+  el.textContent = "";
+  rightAnchor();
+}
+
+/* ——— ana döngü ——— */
+async function cycle(){
+  while(true){
+    for(let i=0; i<phrases.length; i++){
+      await typeOnce(phrases[i]);
+      await wait(GAP);
+    }
+    // Tur bitti -> 5 dk bekle, imleç gizli
+    cur.style.display = "none";
+    await wait(COOLDOWN);
+    cur.style.display = "inline-block";
+    rightAnchor();
+  }
+}
+
+/* Resize olursa hizayı koru */
+addEventListener('resize', rightAnchor);
+
+cycle();
+</script>
+</body>
+</html>
