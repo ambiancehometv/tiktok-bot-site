@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Overlay · typewriter (LTR, right aligned end)</title>
+
+<!-- Poppins Black (900) -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@900&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* 24px, Black (900) */
+    --font: 900 24px/1.35 "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --color: rgba(255,255,255,.98);
+    --shadow: 0 6px 28px rgba(0,0,0,.55);
+
+    /* Zamanlar (ambiance için sakin) */
+    --pre-blink: 1200ms;   /* yazı başlamadan önce sadece imleç */
+    --type-speed: 50ms;    /* ms/harf */
+    --hold-typed: 9000ms;  /* yazı tamamlandıktan sonra görünür kalma süresi */
+    --end-blink: 900ms;    /* silmeden önce kısa blink */
+    --gap-next: 3000ms;    /* cümleler arası boşluk */
+    --cooldown: 300000ms;  /* tüm tur bitince 5 dk bekle (imleç gizli) */
+  }
+
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+
+  /* SAĞ-ALT'a sabitle */
+  .dock-br{
+    position: fixed; right: 22px; bottom: 22px;
+    pointer-events: none; filter: drop-shadow(var(--shadow));
+  }
+
+  /* Sabit genişlikli ray; bitiş her zaman bu kutunun SAĞ kenarı */
+  .track{
+    position: relative;
+    width: min(64vw, 780px);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  /* Yazı+imleç birlikte hareket etsin diye sarmalayıcı */
+  .wrap{
+    display: inline-block;
+    white-space: nowrap;
+    will-change: transform;
+    transform: translateX(0);  /* her cümlede JS ile ayarlanır */
+  }
+
+  .line{
+    font: var(--font);
+    color: var(--color);
+    white-space: nowrap;
+  }
+
+  .cursor{
+    display:inline-block; width:.09em; height:1em; margin-left:.12em;
+    background: var(--color);
+    transform: translateY(.12em);
+    animation: blink 1s steps(1,end) infinite;
+  }
+  @keyframes blink{ 50%{opacity:0} }
+
+  /* yumuşak çıkış */
+  .fade-out{ animation: fadeOut 420ms ease forwards; }
+  @keyframes fadeOut{ to{ opacity:0; transform: translateY(2px) } }
+
+  /* Ölçüm için görünmez kopya */
+  .measure{
+    position:absolute; visibility:hidden; pointer-events:none;
+    white-space:nowrap; left:-9999px; top:-9999px;
+    font: var(--font);
+  }
+</style>
+</head>
+<body>
+  <div class="dock-br">
+    <div class="track" id="track">
+      <span class="wrap" id="wrap">
+        <span id="text" class="line"></span><span id="cur" class="cursor" aria-hidden="true"></span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ölçüm elemanı -->
+  <span id="measure" class="measure"></span>
+
+<script>
+/* ——— cümleler ——— */
+const phrases = [
+  "Feeling good? Drop a hello in the chat.",
+  "Enjoying the music? A like would be lovely.",
+  "Glad you're here — chat is open.",
+  "If the view feels nice, a ❤️ is welcome.",
+  "Lean back and share a thought in chat.",
+  "Relax — a small like helps spread the calm.",
+  "Where are you watching from? Type it in.",
+  "Does the sound feel right? One word in chat is enough.",
+];
+
+/* ——— zaman yardımcıları ——— */
+const getMs = v => parseInt(String(v).replace(/[^0-9]/g,''))||0;
+const css = getComputedStyle(document.documentElement);
+const PRE_BLINK   = getMs(css.getPropertyValue('--pre-blink'));
+const TYPE        = getMs(css.getPropertyValue('--type-speed'));
+const HOLD        = getMs(css.getPropertyValue('--hold-typed'));
+const END_BLINK   = getMs(css.getPropertyValue('--end-blink'));
+const GAP         = getMs(css.getPropertyValue('--gap-next'));
+const COOLDOWN    = getMs(css.getPropertyValue('--cooldown'));
+
+const track   = document.getElementById('track');
+const wrap    = document.getElementById('wrap');
+const el      = document.getElementById('text');
+const cur     = document.getElementById('cur');
+const measure = document.getElementById('measure');
+
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+/* Verilen metnin piksel genişliğini ölç */
+function textWidth(str){
+  measure.textContent = str;
+  return measure.scrollWidth;
+}
+
+/* Cümlenin sonu SAĞ kenara değecek şekilde başlangıç X konumu hesapla.
+   wrap (yazı+imleç) tek parça olarak bu X'e taşınır.
+   İmleç soldan sağa ilerler; bitişte sağda hizalanır. */
+function computeStartX(finalTextW){
+  const trackW = track.getBoundingClientRect().width;
+  const curW   = cur.getBoundingClientRect().width + 2; // küçük tampon
+  return Math.max(0, trackW - finalTextW - curW);
+}
+
+/* Tek cümleyi yaz */
+async function typeOnce(s){
+  // Ön hesap: tam metin genişliği ve başlangıç X
+  const finalW = textWidth(s);
+  const startX = computeStartX(finalW);
+
+  // Sarmalayıcıyı başlangıç konumuna al, içerik boş, imleç görünür
+  wrap.style.transform = `translateX(${startX}px)`;
+  el.textContent = "";
+  cur.style.display = "inline-block";
+
+  // Başlangıçta sadece imleç blink
+  await wait(PRE_BLINK);
+
+  // Soldan sağa yaz; imleç metnin sonunda doğal olarak ilerler
+  for(let j=1; j<=s.length; j++){
+    el.textContent = s.slice(0,j);
+    await wait(TYPE);
+  }
+
+  // Yazı ekranda kalsın (imleç yanıp sönmeye devam)
+  await wait(HOLD);
+
+  // Kısa blink + nazik fade-out, ardından temizle
+  await wait(END_BLINK);
+  el.classList.add('fade-out');
+  await wait(420);
+  el.classList.remove('fade-out');
+  el.textContent = "";
+}
+
+/* Ana döngü */
+async function cycle(){
+  while(true){
+    for(let i=0; i<phrases.length; i++){
+      await typeOnce(phrases[i]);
+      await wait(GAP);
+    }
+    // Tur bitti -> 5 dk bekle, imleç gizli
+    cur.style.display = "none";
+    await wait(COOLDOWN);
+    cur.style.display = "inline-block";
+  }
+}
+
+/* Ekran boyutu değişirse bir sonraki cümlede hizalama doğru hesaplansın */
+addEventListener('resize', () => {
+  // aktif yazım yoksa wrap pozisyonunu sıfırlayabiliriz
+  // (hesap, sonraki typeOnce sırasında yeniden yapılacak)
+  wrap.style.transform = 'translateX(0)';
+});
+
+cycle();
+</script>
+</body>
+</html>
