@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Overlay · typewriter (LTR)</title>
+
+<!-- Poppins (istersen 900 ekle: ...wght@900&display=swap) -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* KOLAY AYARLAR — ambiance üstünde rahatsız etmemesi için süreler uzun */
+    /* Eğer Black istiyorsan: --font: 900 18px/1.35 "Poppins", ...; yap */
+    --font: 500 18px/1.35 "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --color: rgba(255,255,255,.98);
+    --shadow: 0 6px 28px rgba(0,0,0,.55);
+
+    /* ZAMANLAR */
+    --pre-blink: 1200ms;    /* yazı başlamadan önce sadece imleç */
+    --type-speed: 50ms;     /* ms/harf (yavaş ve sakin) */
+    --hold-typed: 9000ms;   /* yazı tamamlandıktan sonra ekranda kalma süresi (uzun) */
+    --end-blink: 900ms;     /* silmeden önce imleç blink süresi */
+    --gap-next: 3000ms;     /* sonraki cümleden önce kısa bekleme */
+    --cooldown: 300000ms;   /* tüm liste bitince 5 dakika (300.000 ms) bekle */
+  }
+
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+
+  /* Sol-alt köşe (soldan sağa yazım için sol tarafa aldık) */
+  .dock-bl{
+    position: fixed; left: 22px; bottom: 22px;
+    pointer-events: none; filter: drop-shadow(var(--shadow));
+  }
+
+  /* Tek satır metin (bant yok) */
+  .line{
+    font: var(--font);
+    color: var(--color);
+    white-space: nowrap;
+    text-align: left;      /* LTR yazım */
+    direction: ltr;
+    position: relative; overflow: hidden; max-width: min(64vw, 780px);
+  }
+
+  /* İmleç (blok) */
+  .cursor{
+    display:inline-block; width:.09em; height:1em; margin-left:.12em;
+    background: var(--color);
+    transform: translateY(.12em);
+    animation: blink 1s steps(1,end) infinite;
+  }
+  @keyframes blink{ 50%{opacity:0} }
+
+  /* yumuşak çıkış */
+  .fade-out{ animation: fadeOut 420ms ease forwards; }
+  @keyframes fadeOut{ to{ opacity:0; transform: translateY(2px) } }
+</style>
+</head>
+<body>
+  <div class="dock-bl">
+    <span id="text" class="line"></span><span id="cur" class="cursor" aria-hidden="true"></span>
+  </div>
+
+<script>
+/* ——— kısa, doğal, kurallara uygun ifadeler ——— */
+const phrases = [
+  "Feeling good? Drop a hello in the chat.",
+  "Enjoying the music? A like would be lovely.",
+  "Glad you're here — chat is open.",
+  "If the view feels nice, a ❤️ is welcome.",
+  "Lean back and share a thought in chat.",
+  "Relax — a small like helps spread the calm.",
+  "Where are you watching from? Type it in.",
+  "Does the sound feel right? One word in chat is enough.",
+];
+
+/* ——— zaman yardımcıları ——— */
+const getMs = v => parseInt(String(v).replace(/[^0-9]/g,''))||0;
+const css = getComputedStyle(document.documentElement);
+const PRE_BLINK = getMs(css.getPropertyValue('--pre-blink'));
+const TYPE = getMs(css.getPropertyValue('--type-speed'));
+const HOLD = getMs(css.getPropertyValue('--hold-typed'));
+const END_BLINK = getMs(css.getPropertyValue('--end-blink'));
+const GAP = getMs(css.getPropertyValue('--gap-next'));
+const COOLDOWN = getMs(css.getPropertyValue('--cooldown'));
+
+const el = document.getElementById('text');
+const cur = document.getElementById('cur');
+
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+async function typeOnce(s){
+  // 1) sadece imleç blink (başlangıç)
+  el.textContent = "";
+  cur.style.display = "inline-block";
+  await wait(PRE_BLINK);
+
+  // 2) soldan sağa harf harf yaz
+  for(let j=1; j<=s.length; j++){
+    el.textContent = s.slice(0,j);
+    // imleç yazının sonunda kalsın
+    await wait(TYPE);
+  }
+
+  // 3) yazı ekranda kalsın, imleç yanıp sönmeye devam etsin
+  await wait(HOLD);
+
+  // 4) bitişte kısa blink + nazik fade-out
+  await wait(END_BLINK);
+  el.classList.add('fade-out');
+  await wait(420);
+  el.classList.remove('fade-out');
+  el.textContent = "";
+}
+
+async function cycle(){
+  while(true){
+    for(let i=0; i<phrases.length; i++){
+      await typeOnce(phrases[i]);
+      // cümleler arasında küçük boşluk
+      await wait(GAP);
+    }
+    // tüm tur bitti: 5 dk bekle, imleç gizlensin
+    cur.style.display = "none";
+    await wait(COOLDOWN);
+    // yeni tura geçmeden önce imleç tekrar gelsin
+    cur.style.display = "inline-block";
+  }
+}
+
+cycle();
+</script>
+</body>
+</html>
